@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>וויסקי בלקין · תשלום</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{color-scheme:light}
+  body{margin:0;font:18px/1.6 "Open Sans",Arial,sans-serif;background:#fff;color:#202020;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px;box-sizing:border-box}
+  h1{font:700 40px/1 Impact,"Arial Narrow",sans-serif;color:#bb0102;margin:0 0 12px}
+  a.btn{display:inline-block;margin-top:18px;background:#bb0102;color:#fff;border-radius:100px;padding:12px 30px;font-weight:700;text-decoration:none}
+  a.back{display:block;margin-top:14px;color:#202020}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="t">רגע…</h1>
+  <p id="m"></p>
+  <a class="btn" id="r" href="#" target="_blank" rel="noopener" hidden>להורדת הקבלה</a>
+  <a class="back" href="/">חזרה לעמוד וויסקי בלקין</a>
+</main>
+<script>
+(async function(){
+  const q = new URLSearchParams(location.search);
+  const order = q.get('order'), t = q.get('t'), ok = q.get('status') === 'success';
+  // Inside the payment frame on our page: tell the page and let it show the receipt.
+  if (window.parent !== window) {
+    try { window.parent.postMessage({ type: 'balkin-payment', status: ok ? 'success' : 'failure', order }, '*'); } catch (e) {}
+  }
+  const T = document.getElementById('t'), M = document.getElementById('m'), R = document.getElementById('r');
+  if (!ok) { T.textContent = 'התשלום לא הושלם'; M.textContent = 'אפשר לחזור לעמוד ולנסות שוב.'; return; }
+  T.textContent = 'התשלום התקבל, תודה!';
+  M.textContent = `מספר הזמנה ${order}. מכינים את הקבלה…`;
+  for (let i = 0; i < 20; i++) {
+    try {
+      const d = await (await fetch(`/api/order-status?order=${encodeURIComponent(order)}&t=${encodeURIComponent(t)}`)).json();
+      if (d.receiptUrl) { R.href = d.receiptUrl; R.hidden = false; M.textContent = `מספר הזמנה ${order}. הקבלה נשלחה גם למייל שלכם.`; return; }
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  M.textContent = `מספר הזמנה ${order}. הקבלה תישלח למייל שלכם בדקות הקרובות.`;
+})();
+</script>
+</body>
+</html>
