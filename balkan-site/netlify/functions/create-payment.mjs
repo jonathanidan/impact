@@ -71,6 +71,15 @@ export default async (req) => {
         ];
   }
   if (process.env.MORNING_PLUGIN_ID) body.pluginId = process.env.MORNING_PLUGIN_ID;
+  else {
+    // No plugin set: ask Morning which payment terminal this account has, prefer one approved for websites.
+    try {
+      const info = await morning(`/documents/info?type=${body.type}`);
+      const plugins = info.paymentPlugins || [];
+      const pick = plugins.find(p => p.ecommerce) || plugins.find(p => p.active !== false) || plugins[0];
+      if (pick?.id) body.pluginId = pick.id;
+    } catch (e) { console.error('plugin lookup failed:', e.message); }
+  }
   if (process.env.MORNING_GROUP) body.group = Number(process.env.MORNING_GROUP);
 
   const store = getStore('orders');
