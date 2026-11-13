@@ -15,28 +15,35 @@ let cached = null; // { token, exp }
 
 export async function getToken() {
   if (cached && Date.now() < cached.exp) return cached.token;
-  const id = process.env.MORNING_API_ID, secret = process.env.MORNING_API_SECRET;
+  // trim: a space or line break copied along with the key makes Morning reject it
+  const id = (process.env.MORNING_API_ID || '').trim(), secret = (process.env.MORNING_API_SECRET || '').trim();
   if (!id || !secret) throw new Error('Missing MORNING_API_ID / MORNING_API_SECRET');
 
   // Morning moved token issuing in 2026. Try the new OAuth endpoint, then the older one.
+  // Morning's 2026 docs and real integrations disagree on the field names, so try each known form.
+  const J = 'application/json', F = 'application/x-www-form-urlencoded';
   const attempts = [
-    [AUTH_URL, { grant_type: 'client_credentials', client_id: id, client_secret: secret }],
-    [API_BASE + '/account/token', { id, secret, grant_type: 'client_credentials' }],
+    [AUTH_URL, J, { grant_type: 'client_credentials', client_id: id, client_secret: secret }],
+    [AUTH_URL, J, { grant_type: 'client_credentials', id, secret }],
+    [AUTH_URL, F, { grant_type: 'client_credentials', client_id: id, client_secret: secret }],
+    [API_BASE + '/account/token', J, { id, secret, grant_type: 'client_credentials' }],
   ];
   const errors = [];
-  for (const [url, body] of attempts) {
+  for (const [url, type, body] of attempts) {
     try {
-      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': type, Accept: 'application/json' },
+        body: type === J ? JSON.stringify(body) : new URLSearchParams(body).toString() });
       const d = await r.json().catch(() => ({}));
       const token = d.accessToken || d.access_token || d.token;
       if (r.ok && token) {
         cached = { token, exp: Date.now() + 50 * 60 * 1000 }; // tokens last ~1 hour
         return token;
       }
-      errors.push(`${url} → ${r.status} ${d.errorMessage || d.message || ''}`.trim());
-    } catch (e) { errors.push(`${url} → ${e.message}`); }
+      errors.push(`${url} → ${r.status} ${d.errorMessage || d.message || d.error_description || d.error || ''}`.trim() + ` [${type === F ? 'form' : Object.keys(body).join(',')}]`);
+    } catch (e) { errors.push(`${url} → ${e.message}`);
+      continue; }
   }
-  throw new Error('Morning login failed: ' + errors.join(' | '));
+  throw new Error(`Morning login failed (v3, ${ENV}, key id …${id.slice(-4)}): ` + errors.join(' | '));
 }
 
 export async function morning(path, { method = 'GET', body } = {}) {
