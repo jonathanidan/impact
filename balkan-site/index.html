@@ -137,7 +137,7 @@ body{background:#202020;margin:0}
 #balkin .f input,#balkin .f textarea{width:100%;font:400 17px var(--body);color:var(--ink);background:#f4f5f2;border:1.5px solid #c9ccc2;border-radius:12px;padding:11px 14px;color-scheme:light;resize:vertical}
 #balkin .f input:focus,#balkin .f textarea:focus{outline:none;border-color:var(--ink);background:#fff}
 #balkin .f [aria-invalid="true"]{border-color:var(--red);background:#fff4f4}
-#balkin .form-error{margin-top:14px!important;color:var(--red);font-weight:700;font-size:16px}
+#balkin .form-error{white-space:pre-line;overflow-wrap:anywhere;margin-top:14px!important;color:var(--red);font-weight:700;font-size:16px}
 #balkin .pay button.pill{font-family:var(--display)}
 #balkin .pay button.pill:disabled{opacity:.6;cursor:progress}
 #balkin .s2-title{font:700 40px/1 var(--display);color:var(--red)}
@@ -449,7 +449,7 @@ form.addEventListener('submit', async e => {
         taxId: v('f-taxid'), city: v('f-city'), address: v('f-address'), notes: v('f-notes') })
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.url) throw new Error(data.error || 'שגיאה ביצירת התשלום');
+    if (!res.ok || !data.url) throw new Error((data.error || 'שגיאה ביצירת התשלום') + (data.debug ? '\n[debug] ' + data.debug : ''));
     current = { orderId: data.orderId, token: data.token };
     $('pay-sum').textContent = `${c.test ? 'הזמנת בדיקה' : c.n + ' בקבוקים'} · ${fmt(data.total)} · הזמנה ${data.orderId}`;
     $('pay-frame').src = data.url;
